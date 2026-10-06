@@ -78,13 +78,14 @@ def patch(src, dst):
     # 2. project.binary: neutralize the SentryInit autoload key (same length)
     po = abs_off(proj[2]); psz = proj[3]
     f.seek(po); pdata = bytearray(f.read(psz))
-    k = pdata.find(b"autoload/SentryInit")
-    assert k >= 0, "autoload/SentryInit key not found in project.binary"
+    # v0.111 前键名为 autoload/SentryInit,之后改为 autoload/SentryBootstrap — 都按前缀禁用
+    k = pdata.find(b"autoload/Sentry")
+    assert k >= 0, "autoload/Sentry* key not found in project.binary"
     pdata[k:k + 8] = b"xutoload"          # 'autoload' -> 'xutoload'
-    assert pdata.find(b"autoload/SentryInit") == -1
+    assert pdata.find(b"autoload/Sentry") == -1
     f.seek(po); f.write(pdata)
     proj[4] = hashlib.md5(bytes(pdata)).digest()
-    print(f"project.binary: disabled autoload/SentryInit (same-length rename)")
+    print(f"project.binary: disabled autoload/Sentry* (same-length rename)")
 
     # 3. remove sentry.gdextension entry, rewrite directory, truncate
     del entries[sentry_idx]

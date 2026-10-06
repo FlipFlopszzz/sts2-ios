@@ -1,0 +1,158 @@
+name: build-ios (STS2 → iPhone 瘦身未签 IPA)
+# 从私有 Release(game-files)拉游戏 dll，编译 spine iOS 库，跑 build-ios.sh 命令行六步
+# (STS2_SKIP_PCK=1 跳过 pck 三连——StS2.pck 已在本地做好并单独上机)，
+# xcodebuild 无签名编译 → 剥壳 pck → 注入 --main-pack → ad-hoc 伪签(带大内存 entitlements) → 瘦身 IPA。
+# SideStore 用用户自己的 Apple ID 对 IPA 重签并保留 increased-memory entitlement。
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: "App bundle id（自定，建议反向域名）"
+        required: true
+        default: "com.flipflopszzz.sts2"
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VER: "4.5.1-stable"
+  FMOD_RELEASE: "6.1.0-4.5.0"
+
+jobs:
+  build-spine-ios:
+    name: 编译 spine-godot iOS framework
+    runs-on: macos-15
+    steps:
+      - name: Checkout spine-runtimes 4.2
+        run: git clone --depth 1 -b 4.2 https://github.com/EsotericSoftware/spine-runtimes.git
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install scons
+        run: pip install scons
+      - name: Build (godot-cpp 4.5 + spine-godot ios template_release)
+        run: |
+          cd spine-runtimes/spine-godot/build
+          ./setup-extension.sh 4.5.1-stable false
+          ./build-extension.sh ios
+      - name: Pack framework
+        run: |
+          FW=$(find spine-runtimes/spine-godot -type d -name "libspine_godot.ios.template_release.framework" | head -1)
+          [ -n "$FW" ] || { echo "framework 未产出"; exit 1; }
+          echo "found: $FW"
+          cd "$(dirname "$FW")"
+          zip -qry "$GITHUB_WORKSPACE/spine-ios.zip" "$(basename "$FW")"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spine-ios
+          path: spine-ios.zip
+          retention-days: 1
+
+  build-app:
+    name: 织入 + AOT + Godot 导出 + 瘦身 IPA
+    runs-on: macos-15
+    needs: build-spine-ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install .NET iOS workload (NativeAOT ios-arm64)
+        run: dotnet workload install ios
+
+      - name: Download Godot 4.5.1 mono + iOS 导出模板
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_${GODOT_VER}_mono_macos.universal.zip"
+          curl -fL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_${GODOT_VER}_mono_export_templates.tpz"
+          unzip -q godot.zip -d "$HOME/godot"
+          xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
+          "$HOME/godot/Godot_mono.app/Contents/MacOS/Godot" --version
+          mkdir -p "$HOME/Library/Application Support/Godot/export_templates"
+          unzip -q templates.tpz -d gt
+          mv gt/templates "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VER}.mono"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: spine-ios
+          path: spine-art
+
+      - name: 取游戏 dll（私有 Release）+ FMOD 官方 iOS 库
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download game-files --repo "$GITHUB_REPOSITORY" -p data-windows.zip -D "$RUNNER_TEMP"
+          RES="$HOME/game/Slay the Spire 2/SlayTheSpire2.app/Contents/Resources"
+          mkdir -p "$RES"
+          cd "$RES" && unzip -q "$RUNNER_TEMP/data-windows.zip"
+          mv data_sts2_windows_x86_64 data_sts2_macos_arm64
+          curl -fL -o "$RUNNER_TEMP/fmod-addons.zip" \
+            "https://github.com/utopia-rise/fmod-gdextension/releases/download/${FMOD_RELEASE}/addons.zip"
+          unzip -q "$RUNNER_TEMP/fmod-addons.zip" -d "$RUNNER_TEMP/fmodaddons"
+
+      - name: 摆第三方 iOS 库目录
+        run: |
+          mkdir -p "$HOME/ios-libs" "$HOME/fmod-ios/lib"
+          unzip -q spine-art/spine-ios.zip -d "$HOME/ios-libs"
+          cp -R "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libGodotFmod.ios.template_release.xcframework" "$HOME/ios-libs/"
+          cp "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libfmod_iphoneos.a" \
+             "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libfmodstudio_iphoneos.a" "$HOME/fmod-ios/lib/"
+
+      - name: 生成 config.sh + .gdextension 入口（仓库不含，见 .gitignore）
+        run: |
+          TEAM_PLACE="TEAMPLACE00"   # 占位 Team ID；SideStore 重签时替换为真实值
+          cat > ios-export/config.sh <<CFG
+          STS2_TEAM_ID="$TEAM_PLACE"
+          STS2_BUNDLE_ID="${{ inputs.bundle_id }}"
+          STS2_SIGN_IDENTITY="-"
+          STS2_DEVICE_UDID=""
+          STS2_BUNDLE_ID_SIGNED="\$STS2_BUNDLE_ID"
+          STS2_GAME_APP="$HOME/game/Slay the Spire 2/SlayTheSpire2.app/Contents/Resources"
+          STS2_GODOT_BIN="$HOME/godot/Godot_mono.app/Contents/MacOS/Godot"
+          STS2_DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
+          STS2_IOS_LIBS_DIR="$HOME/ios-libs"
+          STS2_FMOD_STATIC_DIR="$HOME/fmod-ios/lib"
+          CFG
+          mkdir -p ios-export/addons/spine ios-export/addons/fmod
+          curl -fL -o ios-export/addons/spine/spine_godot_extension.gdextension \
+            "https://raw.githubusercontent.com/EsotericSoftware/spine-runtimes/4.2/spine-godot/spine_godot_extension.gdextension"
+          cp "$RUNNER_TEMP/fmodaddons/fmod/fmod.gdextension" ios-export/addons/fmod/fmod.gdextension
+
+      - name: build-ios.sh（织入 → 依赖组装 → AOT → Godot 导出 → FMOD 注入 → entitlements）
+        env:
+          STS2_SKIP_PCK: "1"
+        run: bash ios-export/build-ios.sh
+
+      - name: xcodebuild 无签名编译 → 剥壳 → 注入 cmdline → 伪签 → 瘦身 IPA
+        run: |
+          xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \
+            -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet
+          APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
+          [ -d "$APP" ] || { echo "未产出 .app"; exit 1; }
+          rm -f "$APP"/*.pck
+          plutil -remove godot_cmdline "$APP/Info.plist" 2>/dev/null || true
+          plutil -insert godot_cmdline -json '["--main-pack", "user://StS2.pck"]' "$APP/Info.plist"
+          plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$APP/Info.plist"
+          plutil -replace CFBundleShortVersionString -string "0.111.0" "$APP/Info.plist"
+          for fw in "$APP/Frameworks/"*.framework; do
+            codesign -f -s - --generate-entitlement-der "$fw"
+          done
+          codesign -f -s - --generate-entitlement-der --entitlements ios-export/.work/ent_mem.plist "$APP"
+          codesign -d --entitlements - "$APP" 2>/dev/null | grep -q increased-memory \
+            || { echo "大内存 entitlement 缺失"; exit 1; }
+          du -sh "$APP"
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP" && zip -qry StS2-slim.ipa Payload
+          du -h StS2-slim.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sts2-ios-slim
+          path: |
+            StS2-slim.ipa
+          retention-days: 7

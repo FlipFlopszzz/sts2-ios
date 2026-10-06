@@ -149,9 +149,12 @@ EOF
 ok "内存权限 entitlements 已备: $ENT"
 
 step "5.5/6 游戏内容包三连处理（移 sentry + 补 672 脚本占位 → 官方引擎能加载）"
-# MegaDot 私有引擎打的 pck 与官方引擎的 C# 脚本/扩展机制冲突,必须两处修:
+# STS2_SKIP_PCK=1 跳过本步：CI 等无游戏 pck 的环境，pck 三连已在别处（如 Windows 本地）做好# MegaDot 私有引擎打的 pck 与官方引擎的 C# 脚本/扩展机制冲突,必须两处修:
 #  ① 移 sentry.gdextension(无 iOS 版,启动加载会崩)
 #  ② 补占位 .cs(官方引擎按 path 找 .cs 资源,MegaDot pck 里 0 个 → 场景脚本 reload 崩)
+if [ "${STS2_SKIP_PCK:-0}" = "1" ]; then
+  ok "跳过 pck 三连(STS2_SKIP_PCK=1): StS2.pck 预期已在别处做好并单独上机"
+else
 GAME_PCK="$GAME/Slay the Spire 2.pck"
 python3 "$ROOT/tools/pck_patch_sentry.py" "$GAME_PCK" "$WORK/pck_nosentry.pck" >"$WORK/pck1.log" 2>&1 \
   || fail "pck 移 sentry 失败,见 $WORK/pck1.log"
@@ -164,6 +167,7 @@ GOTSENT=$(python3 "$ROOT/tools/pck_ls.py" "$EXPORT_DIR/build/StS2.pck" ls 2>/dev
 [ "$GOTCS" -ge 600 ] || fail "pck 脚本占位数异常: $GOTCS (期望 ~$CSN)"
 [ "$GOTSENT" = "0" ] || fail "pck 仍含 sentry: $GOTSENT"
 ok "游戏内容包就位: $(du -h "$EXPORT_DIR/build/StS2.pck"|cut -f1), $GOTCS 脚本占位, 0 sentry"
+fi
 
 step "6/6 签名 + 装机（免费账号必须走 Xcode GUI,命令行 xcodebuild 会 No Accounts）"
 cat <<GUIDE
