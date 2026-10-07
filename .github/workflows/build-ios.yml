@@ -105,7 +105,7 @@ jobs:
       - name: 摆第三方库（iOS 构建 + macOS 编辑器校验用）
         run: |
           mkdir -p "$HOME/ios-libs" "$HOME/fmod-ios/lib"
-          unzip -q spine-art/spine-ios.zip -d "$HOME/spine-libs"
+          unzip -q spine-art/spine-libs.zip -d "$HOME/spine-libs"
           IOS_FW=$(find "$HOME/spine-libs" -type d -name "libspine_godot.ios.template_release.framework" | head -1)
           MACOS_ED=$(find "$HOME/spine-libs" -type d -name "libspine_godot.macos.editor.framework" | head -1)
           [ -n "$IOS_FW" ] && [ -n "$MACOS_ED" ] || { echo "spine framework 不全"; exit 1; }
