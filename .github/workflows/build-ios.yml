@@ -66,14 +66,14 @@ jobs:
       - name: Download Godot 4.5.1 mono + iOS 导出模板
         run: |
           cd "$RUNNER_TEMP"
-          curl -fL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_${GODOT_VER}_mono_macos.universal.zip"
-          curl -fL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_${GODOT_VER}_mono_export_templates.tpz"
+          curl -fL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_v${GODOT_VER}_mono_macos.universal.zip"
+          curl -fL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_v${GODOT_VER}_mono_export_templates.tpz"
           unzip -q godot.zip -d "$HOME/godot"
           xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
           "$HOME/godot/Godot_mono.app/Contents/MacOS/Godot" --version
           mkdir -p "$HOME/Library/Application Support/Godot/export_templates"
           unzip -q templates.tpz -d gt
-          mv gt/templates "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VER}.mono"
+          mv gt/templates "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VER/-/.}.mono"
 
       - uses: actions/download-artifact@v4
         with:
