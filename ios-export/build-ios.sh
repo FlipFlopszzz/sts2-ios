@@ -99,11 +99,18 @@ ok "sts2.framework 预编译完成: $(du -h "$PUB_DIR/sts2.dylib" | cut -f1) arm
 
 step "5/6 Godot 导出 iOS 工程"
 mkdir -p "$EXPORT_DIR/build"
+# 干净环境(无 .godot 导入缓存)先 headless 导入一次,再导出
+"$GODOT" --headless --path "$EXPORT_DIR" --import >"$WORK/import.log" 2>&1 || true
 # 导出 Xcode 工程（--main-pack 是运行时参数不是导出参数,不能放这里;
 # 游戏内容通过 step 5.5 替换 pck 进入应用包）
 "$GODOT" --headless --path "$EXPORT_DIR" \
-  --export-release "iOS" "$EXPORT_DIR/build/StS2.ipa" 2>&1 | tee "$WORK/export.log" | tail -8
-[ -d "$EXPORT_DIR/build/StS2.xcodeproj" ] || fail "Godot 未生成 Xcode 工程，见 $WORK/export.log"
+  --export-release "iOS" "$EXPORT_DIR/build/StS2.ipa" >"$WORK/export.log" 2>&1 \
+  || true
+if [ ! -d "$EXPORT_DIR/build/StS2.xcodeproj" ]; then
+  echo "── export.log 尾部 ──" >&2
+  tail -40 "$WORK/export.log" >&2
+  fail "Godot 未生成 Xcode 工程，完整日志见 $WORK/export.log"
+fi
 ok "Xcode 工程已生成"
 
 step "5.15/6 修 pbxproj 签名（Godot 每次导出重生成工程: Distribution→Development + 钉死团队）"
