@@ -161,27 +161,8 @@ jobs:
           GH_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
         run: |
           PBX=ios-export/build/StS2.xcodeproj/project.pbxproj
-          TRY() { xcodebuild -list -project ios-export/build/StS2.xcodeproj >/dev/null 2>&1; }
-          if ! TRY; then
-            echo "=== 实验1: 删除首行 // !\$*UTF8*\$! 编码声明 ==="
-            cp "$PBX" "$RUNNER_TEMP/pbx.orig"
-            python3 -c "import sys; p=sys.argv[1]; t=open(p,encoding='utf-8').read(); open(p,'w',encoding='utf-8',newline='').write(t.split('\n',1)[1] if t.startswith('//') else t)" "$PBX"
-            if TRY; then echo "删首行修复成功"; else
-              echo "=== 实验2: xcodeproj gem 重新规范化保存 ==="
-              cp "$RUNNER_TEMP/pbx.orig" "$PBX"
-              gem install xcodeproj --no-document >/dev/null 2>&1
-              ruby -rxcodeproj -e "Xcodeproj::Project.open('ios-export/build/StS2.xcodeproj').save" || { echo "gem 解析也失败"; exit 1; }
-              if TRY; then echo "gem 规范化修复成功"; else
-                echo "=== 全部变体失败,打印 pbxproj 全文供人工分析 ==="
-                cat "$PBX"
-                exit 1
-              fi
-            fi
-          fi
-          xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \
-            -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet \
-            || { echo "=== pbxproj 现状头部 ==="; head -5 "$PBX"; echo "=== export.log 尾部 ==="; tail -40 ios-export/.work/export.log; exit 1; }
+          python3 tools/fix_pbx_gdext.py "$PBX"
+          xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \n            -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \n            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet \n            || { echo "=== 修复后仍失败,pbxproj 头部 ==="; head -10 "$PBX"; echo "=== export.log 尾部 ==="; tail -40 ios-export/.work/export.log; exit 1; }
           APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
           [ -d "$APP" ] || { echo "未产出 .app"; exit 1; }
           rm -f "$APP"/*.pck
