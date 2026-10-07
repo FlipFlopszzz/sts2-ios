@@ -47,6 +47,7 @@ ok "前置齐全"
 step "1/6 重新织入最新 sts2.dll（补丁 + 游戏原始程序集）"
 cd "$ROOT" || fail "cd 失败"
 cp "$GAME_DATA/sts2.dll" "$WORK/sts2.dll" || fail "拷贝游戏 sts2.dll 失败"
+cp "$GAME_DATA/"*.dll "$WORK/" || fail "拷贝游戏依赖 dll 失败"   # 织入器写回时需在旁边解析全部依赖程序集
 dotnet build src/STS2MobileIos -c Release -o "$WORK/mobilepatch-out" >"$WORK/patch-build.log" 2>&1 \
   || fail "补丁库编译失败，见 $WORK/patch-build.log"
 dotnet run --project src/STS2Weaver -c Release -- \
