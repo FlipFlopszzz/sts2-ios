@@ -66,11 +66,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: /Users/runner/dotnet9   # 独立目录: 镜像预装的 .NET 10 会让 Godot 编辑器内 C# 构建崩(Abort trap 6 / Failed to load project assembly)
         with:
           dotnet-version: 9.0.x
 
       - name: Install .NET iOS workload (NativeAOT ios-arm64)
-        run: dotnet workload install ios
+        run: |
+          dotnet --version   # 必须 9.0.x
+          dotnet workload install ios
 
       - name: Download Godot 4.5.1 mono + iOS 导出模板
         run: |
@@ -128,6 +132,8 @@ jobs:
       - name: 生成 config.sh + .gdextension 入口（仓库不含，见 .gitignore）
         run: |
           TEAM_PLACE="TEAMPLACE00"   # 占位 Team ID；SideStore 重签时替换为真实值
+          # preset 的 app_store_team_id 是 required 项,为空 Godot 拒绝导出——填占位
+          sed -i '' "s|application/app_store_team_id=\"\"|application/app_store_team_id=\"$TEAM_PLACE\"|" ios-export/export_presets.cfg
           cat > ios-export/config.sh <<CFG
           STS2_TEAM_ID="$TEAM_PLACE"
           STS2_BUNDLE_ID="${{ inputs.bundle_id }}"
