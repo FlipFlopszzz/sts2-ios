@@ -165,7 +165,15 @@ jobs:
           xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \
             -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \
             CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet \
-            || { echo "--- xcodebuild 失败,上传工程供本地分析 ---"; cd ios-export/build && zip -qry "$RUNNER_TEMP/xcodeproj.zip" StS2.xcodeproj; gh release upload latest "$RUNNER_TEMP/xcodeproj.zip" --repo FlipFlopszzz/sts2-ios-data --clobber; exit 1; }
+            || {
+              echo "=== xcodeproj 包内全部文件 ==="
+              find ios-export/build/StS2.xcodeproj -type f | while read -r f; do echo "--- $f ---"; cat "$f"; echo; done
+              echo "=== export.log 尾部 60 行 ==="
+              tail -60 ios-export/.work/export.log
+              echo "=== import.log 尾部 30 行 ==="
+              tail -30 ios-export/.work/import.log
+              exit 1
+            }
           APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
           [ -d "$APP" ] || { echo "未产出 .app"; exit 1; }
           rm -f "$APP"/*.pck
