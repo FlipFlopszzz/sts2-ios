@@ -22,7 +22,7 @@ env:
 jobs:
   build-spine-ios:
     name: 编译 spine-godot iOS framework
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout spine-runtimes 4.2
         run: git clone --depth 1 -b 4.2 https://github.com/EsotericSoftware/spine-runtimes.git
@@ -60,7 +60,7 @@ jobs:
 
   build-app:
     name: 织入 + AOT + Godot 导出 + 瘦身 IPA
-    runs-on: macos-15
+    runs-on: macos-26
     needs: build-spine-ios
     steps:
       - uses: actions/checkout@v4
