@@ -158,6 +158,12 @@ jobs:
 
       - name: xcodebuild 无签名编译 → 剥壳 → 注入 cmdline → 伪签 → 瘦身 IPA
         run: |
+          PBX=ios-export/build/StS2.xcodeproj/project.pbxproj
+          plutil -lint "$PBX" || {
+            echo "--- pbxproj 解析失败,打印 DEVELOPMENT/BUNDLE 相关行 ---"
+            grep -n -A2 "DEVELOPMENT_TEAM\|PRODUCT_BUNDLE_IDENTIFIER" "$PBX" | head -30
+            exit 1
+          }
           xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \
             -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \
             CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet
