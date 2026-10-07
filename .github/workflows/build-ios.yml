@@ -126,6 +126,12 @@ jobs:
           curl -fL -o ios-export/addons/spine/spine_godot_extension.gdextension \
             "https://raw.githubusercontent.com/EsotericSoftware/spine-runtimes/4.2/spine-godot/spine_godot_extension.gdextension"
           cp "$RUNNER_TEMP/fmodaddons/fmod/fmod.gdextension" ios-export/addons/fmod/fmod.gdextension
+          # 只留 iOS 条目：headless 导入时编辑器按当前平台(macos)条目加载库,缺失即判配置错误拒导出
+          for f in ios-export/addons/spine/spine_godot_extension.gdextension ios-export/addons/fmod/fmod.gdextension; do
+            awk '/^[[:space:]]*(windows|macos|linux|android|web)\.[a-zA-Z_.0-9]+[[:space:]]*=/ { if ($0 ~ /\{/) skip=1; next }
+                 skip { if ($0 ~ /\}/) skip=0; next }
+                 { print }' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          done
 
       - name: build-ios.sh（织入 → 依赖组装 → AOT → Godot 导出 → FMOD 注入 → entitlements）
         env:
