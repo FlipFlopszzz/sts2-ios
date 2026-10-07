@@ -101,6 +101,12 @@ jobs:
           cp "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libfmod_iphoneos.a" \
              "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libfmodstudio_iphoneos.a" "$HOME/fmod-ios/lib/"
 
+      - name: 准备 game-refs（补丁库编译引用，仓库不含）
+        run: |
+          RES="$HOME/game/Slay the Spire 2/SlayTheSpire2.app/Contents/Resources/data_sts2_macos_arm64"
+          mkdir -p game-refs
+          cp "$RES/sts2.dll" "$RES/GodotSharp.dll" game-refs/
+
       - name: 生成 config.sh + .gdextension 入口（仓库不含，见 .gitignore）
         run: |
           TEAM_PLACE="TEAMPLACE00"   # 占位 Team ID；SideStore 重签时替换为真实值
