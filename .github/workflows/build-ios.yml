@@ -31,18 +31,20 @@ jobs:
           python-version: "3.11"
       - name: Install scons
         run: pip install scons
-      - name: Build (godot-cpp 4.5 + spine-godot ios template_release)
+      - name: Build (godot-cpp 4.5 + spine-godot ios template_release + macos 全档)
         run: |
           cd spine-runtimes/spine-godot/build
           ./setup-extension.sh 4.5.1-stable false
           ./build-extension.sh ios
-      - name: Pack framework
+          ./build-extension.sh macos
+      - name: Pack frameworks
         run: |
-          FW=$(find spine-runtimes/spine-godot -type d -name "libspine_godot.ios.template_release.framework" | head -1)
-          [ -n "$FW" ] || { echo "framework 未产出"; exit 1; }
-          echo "found: $FW"
-          cd "$(dirname "$FW")"
-          zip -qry "$GITHUB_WORKSPACE/spine-ios.zip" "$(basename "$FW")"
+          cd spine-runtimes/spine-godot
+          FWS=$(find . -type d \( -name "libspine_godot.ios.template_release.framework" -o -name "libspine_godot.macos.*.framework" \) | sed 's|^\./||')
+          [ -n "$FWS" ] || { echo "framework 未产出"; exit 1; }
+          echo "$FWS"
+          # shellcheck disable=SC2086
+          zip -qry "$GITHUB_WORKSPACE/spine-libs.zip" $FWS
       - uses: actions/upload-artifact@v4
         with:
           name: spine-ios
@@ -93,10 +95,19 @@ jobs:
             "https://github.com/utopia-rise/fmod-gdextension/releases/download/${FMOD_RELEASE}/addons.zip"
           unzip -q "$RUNNER_TEMP/fmod-addons.zip" -d "$RUNNER_TEMP/fmodaddons"
 
-      - name: 摆第三方 iOS 库目录
+      - name: 摆第三方库（iOS 构建 + macOS 编辑器校验用）
         run: |
           mkdir -p "$HOME/ios-libs" "$HOME/fmod-ios/lib"
-          unzip -q spine-art/spine-ios.zip -d "$HOME/ios-libs"
+          unzip -q spine-art/spine-ios.zip -d "$HOME/spine-libs"
+          IOS_FW=$(find "$HOME/spine-libs" -type d -name "libspine_godot.ios.template_release.framework" | head -1)
+          MACOS_ED=$(find "$HOME/spine-libs" -type d -name "libspine_godot.macos.editor.framework" | head -1)
+          [ -n "$IOS_FW" ] && [ -n "$MACOS_ED" ] || { echo "spine framework 不全"; exit 1; }
+          cp -R "$IOS_FW" "$HOME/ios-libs/"
+          # Godot 4.5 导出校验: 编辑器平台(macos)必须能加载扩展库,否则拒导出
+          mkdir -p ios-export/addons/spine/macos ios-export/addons/fmod/libs/macos
+          MAC_DIR=$(dirname "$MACOS_ED")
+          cp -R "$MAC_DIR"/libspine_godot.macos.*.framework ios-export/addons/spine/macos/
+          cp -R "$RUNNER_TEMP/fmodaddons/fmod/libs/macos/." ios-export/addons/fmod/libs/macos/
           cp -R "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libGodotFmod.ios.template_release.xcframework" "$HOME/ios-libs/"
           cp "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libfmod_iphoneos.a" \
              "$RUNNER_TEMP/fmodaddons/fmod/libs/iOS/libfmodstudio_iphoneos.a" "$HOME/fmod-ios/lib/"
@@ -126,12 +137,6 @@ jobs:
           curl -fL -o ios-export/addons/spine/spine_godot_extension.gdextension \
             "https://raw.githubusercontent.com/EsotericSoftware/spine-runtimes/4.2/spine-godot/spine_godot_extension.gdextension"
           cp "$RUNNER_TEMP/fmodaddons/fmod/fmod.gdextension" ios-export/addons/fmod/fmod.gdextension
-          # 只留 iOS 条目：headless 导入时编辑器按当前平台(macos)条目加载库,缺失即判配置错误拒导出
-          for f in ios-export/addons/spine/spine_godot_extension.gdextension ios-export/addons/fmod/fmod.gdextension; do
-            awk '/^[[:space:]]*(windows|macos|linux|android|web)\.[a-zA-Z_.0-9]+[[:space:]]*=/ { if ($0 ~ /\{/) skip=1; next }
-                 skip { if ($0 ~ /\}/) skip=0; next }
-                 { print }' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-          done
 
       - name: build-ios.sh（织入 → 依赖组装 → AOT → Godot 导出 → FMOD 注入 → entitlements）
         env:
