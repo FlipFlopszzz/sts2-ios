@@ -163,14 +163,7 @@ jobs:
             echo "--- 文件头十六进制(找不可见字符) ---"
             xxd "$PBX" | head -3
             echo "--- 尝试规范化 BOM/CRLF 后重试 ---"
-            python3 -c "
-import sys
-p = sys.argv[1]
-d = open(p, 'rb').read()
-d2 = d.replace(b'\xef\xbb\xbf', b'').replace(b'\r\n', b'\n')
-open(p, 'wb').write(d2)
-print('removed:', len(d) - len(d2), 'bytes')
-" "$PBX"
+            python3 -c "import sys; p=sys.argv[1]; d=open(p,'rb').read(); d2=d.replace(b'\xef\xbb\xbf',b'').replace(b'\r\n',b'\n'); open(p,'wb').write(d2); print('removed:', len(d)-len(d2), 'bytes')" "$PBX"
             plutil -lint "$PBX" || { echo "规范化后仍失败"; exit 1; }
             echo "规范化后 lint OK,继续"
           }
