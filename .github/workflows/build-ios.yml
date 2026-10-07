@@ -157,19 +157,15 @@ jobs:
         run: bash ios-export/build-ios.sh
 
       - name: xcodebuild 无签名编译 → 剥壳 → 注入 cmdline → 伪签 → 瘦身 IPA
+        env:
+          GH_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
         run: |
           PBX=ios-export/build/StS2.xcodeproj/project.pbxproj
-          plutil -lint "$PBX" || {
-            echo "--- 文件头十六进制(找不可见字符) ---"
-            xxd "$PBX" | head -3
-            echo "--- 尝试规范化 BOM/CRLF 后重试 ---"
-            python3 -c "import sys; p=sys.argv[1]; d=open(p,'rb').read(); d2=d.replace(b'\xef\xbb\xbf',b'').replace(b'\r\n',b'\n'); open(p,'wb').write(d2); print('removed:', len(d)-len(d2), 'bytes')" "$PBX"
-            plutil -lint "$PBX" || { echo "规范化后仍失败"; exit 1; }
-            echo "规范化后 lint OK,继续"
-          }
+          xcodebuild -list -project ios-export/build/StS2.xcodeproj || true
           xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \
             -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet \
+            || { echo "--- xcodebuild 失败,上传工程供本地分析 ---"; cd ios-export/build && zip -qry "$RUNNER_TEMP/xcodeproj.zip" StS2.xcodeproj; gh release upload latest "$RUNNER_TEMP/xcodeproj.zip" --repo FlipFlopszzz/sts2-ios-data --clobber; exit 1; }
           APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
           [ -d "$APP" ] || { echo "未产出 .app"; exit 1; }
           rm -f "$APP"/*.pck
