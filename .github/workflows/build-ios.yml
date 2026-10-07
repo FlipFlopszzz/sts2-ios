@@ -31,24 +31,31 @@ jobs:
           python-version: "3.11"
       - name: Install scons
         run: pip install scons
-      - name: Build (godot-cpp 4.5 + spine-godot ios template_release + macos 全档)
+      - name: Build spine ios (编完立即收走,防 macos 构建清 bin)
         run: |
           cd spine-runtimes/spine-godot/build
           ./setup-extension.sh 4.5.1-stable false
           ./build-extension.sh ios
+          FW=$(find .. -type d -name "libspine_godot.ios.template_release.framework" | head -1)
+          [ -n "$FW" ] || { echo "ios framework 未产出"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/spinepack/ios"
+          cp -R "$FW" "$RUNNER_TEMP/spinepack/ios/"
+      - name: Build spine macos (编辑器校验用)
+        run: |
+          cd spine-runtimes/spine-godot/build
           ./build-extension.sh macos
+          ED=$(find .. -type d -name "libspine_godot.macos.editor.framework" | head -1)
+          [ -n "$ED" ] || { echo "macos framework 未产出"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/spinepack/macos"
+          cp -R "$(dirname "$ED")"/libspine_godot.macos.*.framework "$RUNNER_TEMP/spinepack/macos/"
       - name: Pack frameworks
         run: |
-          cd spine-runtimes/spine-godot
-          FWS=$(find . -type d \( -name "libspine_godot.ios.template_release.framework" -o -name "libspine_godot.macos.*.framework" \) | sed 's|^\./||')
-          [ -n "$FWS" ] || { echo "framework 未产出"; exit 1; }
-          echo "$FWS"
-          # shellcheck disable=SC2086
-          zip -qry "$GITHUB_WORKSPACE/spine-libs.zip" $FWS
+          ls -R "$RUNNER_TEMP/spinepack"
+          cd "$RUNNER_TEMP/spinepack" && zip -qry "$GITHUB_WORKSPACE/spine-libs.zip" .
       - uses: actions/upload-artifact@v4
         with:
           name: spine-ios
-          path: spine-ios.zip
+          path: spine-libs.zip
           retention-days: 1
 
   build-app:
