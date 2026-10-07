@@ -93,11 +93,11 @@ jobs:
           name: spine-ios
           path: spine-art
 
-      - name: 取游戏 dll（私有 Release）+ FMOD 官方 iOS 库
+      - name: 取游戏 dll（私有数据仓 Release）+ FMOD 官方 iOS 库
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
         run: |
-          gh release download game-files --repo "$GITHUB_REPOSITORY" -p data-windows.zip -D "$RUNNER_TEMP"
+          gh release download game-files --repo FlipFlopszzz/sts2-ios-data -p data-windows.zip -D "$RUNNER_TEMP"
           RES="$HOME/game/Slay the Spire 2/SlayTheSpire2.app/Contents/Resources"
           mkdir -p "$RES"
           cd "$RES" && unzip -q "$RUNNER_TEMP/data-windows.zip"
@@ -187,9 +187,12 @@ jobs:
           cd "$RUNNER_TEMP" && zip -qry StS2-slim.ipa Payload
           du -h StS2-slim.ipa
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sts2-ios-slim
-          path: |
-            StS2-slim.ipa
-          retention-days: 7
+      - name: 推 IPA 到私有数据仓 Release(public 仓库 artifact 人人可下,含游戏代码的 IPA 不能放这)
+        env:
+          GH_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+        run: |
+          cd "$RUNNER_TEMP"
+          gh release view latest --repo FlipFlopszzz/sts2-ios-data >/dev/null 2>&1 \
+            || gh release create latest --repo FlipFlopszzz/sts2-ios-data --title "IPA builds" --notes "最新瘦身 IPA"
+          gh release upload latest StS2-slim.ipa --repo FlipFlopszzz/sts2-ios-data --clobber
+          echo "IPA 已就位: FlipFlopszzz/sts2-ios-data releases tag latest"
