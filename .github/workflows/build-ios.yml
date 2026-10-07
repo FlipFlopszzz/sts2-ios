@@ -160,8 +160,9 @@ jobs:
         run: |
           PBX=ios-export/build/StS2.xcodeproj/project.pbxproj
           plutil -lint "$PBX" || {
-            echo "--- pbxproj 解析失败,打印 DEVELOPMENT/BUNDLE 相关行 ---"
-            grep -n -A2 "DEVELOPMENT_TEAM\|PRODUCT_BUNDLE_IDENTIFIER" "$PBX" | head -30
+            echo "--- pbxproj 解析失败: 文件头 5 行 + 大小 ---"
+            head -5 "$PBX"
+            wc -c "$PBX"
             exit 1
           }
           xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \
