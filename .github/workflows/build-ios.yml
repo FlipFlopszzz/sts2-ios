@@ -161,6 +161,8 @@ jobs:
           GH_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
         run: |
           PBX=ios-export/build/StS2.xcodeproj/project.pbxproj
+          mkdir -p ios-export/build/fmodlibs
+          cp ios-export/addons/fmod/libs/iOS/libfmod_iphoneos.a ios-export/addons/fmod/libs/iOS/libfmodstudio_iphoneos.a ios-export/build/fmodlibs/
           python3 tools/fix_pbx_gdext.py "$PBX"
           xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet || { echo "=== 修复后仍失败,pbxproj 头部 ==="; head -10 "$PBX"; echo "=== export.log 尾部 ==="; tail -40 ios-export/.work/export.log; exit 1; }
           APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
