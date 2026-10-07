@@ -162,7 +162,7 @@ jobs:
         run: |
           PBX=ios-export/build/StS2.xcodeproj/project.pbxproj
           python3 tools/fix_pbx_gdext.py "$PBX"
-          xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 \n            -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd \n            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet \n            || { echo "=== 修复后仍失败,pbxproj 头部 ==="; head -10 "$PBX"; echo "=== export.log 尾部 ==="; tail -40 ios-export/.work/export.log; exit 1; }
+          xcodebuild -project ios-export/build/StS2.xcodeproj -scheme StS2 -configuration Release -sdk iphoneos -derivedDataPath ios-export/build/dd CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" -quiet || { echo "=== 修复后仍失败,pbxproj 头部 ==="; head -10 "$PBX"; echo "=== export.log 尾部 ==="; tail -40 ios-export/.work/export.log; exit 1; }
           APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
           [ -d "$APP" ] || { echo "未产出 .app"; exit 1; }
           rm -f "$APP"/*.pck
