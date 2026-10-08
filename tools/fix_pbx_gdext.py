@@ -17,6 +17,8 @@ if "$additional_pbx_files" not in t:
 
 entries = """		F0DA00000000000000000001 /* libfmod_iphoneos.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000003; };
 		F0DA00000000000000000002 /* libfmodstudio_iphoneos.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000004; };
+		F0DA00000000000000000009 /* libspine_godot.ios.template_release.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000007; };
+		F0DA00000000000000000010 /* libGodotFmod.ios.template_release.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000008; };
 		F0DA00000000000000000005 /* libspine_godot.ios.template_release.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000007; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		F0DA00000000000000000006 /* libGodotFmod.ios.template_release.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000008; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		F0DA00000000000000000003 /* libfmod_iphoneos.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfmod_iphoneos.a; path = fmodlibs/libfmod_iphoneos.a; sourceTree = "<group>"; };
@@ -31,10 +33,14 @@ repl = {
     "\t\t$additional_pbx_files": entries,
     "\t\t\t\t$additional_pbx_frameworks_build":
         "\t\t\t\tF0DA00000000000000000001 /* libfmod_iphoneos.a in Frameworks */,\n"
-        "\t\t\t\tF0DA00000000000000000002 /* libfmodstudio_iphoneos.a in Frameworks */",
+        "\t\t\t\tF0DA00000000000000000002 /* libfmodstudio_iphoneos.a in Frameworks */,\n"
+        "\t\t\t\tF0DA00000000000000000009 /* libspine_godot.ios.template_release.framework in Frameworks */,\n"
+        "\t\t\t\tF0DA00000000000000000010 /* libGodotFmod.ios.template_release.xcframework in Frameworks */",
     "\t\t\t\t$additional_pbx_frameworks_refs":
         "\t\t\t\tF0DA00000000000000000003 /* libfmod_iphoneos.a */,\n"
-        "\t\t\t\tF0DA00000000000000000004 /* libfmodstudio_iphoneos.a */",
+        "\t\t\t\tF0DA00000000000000000004 /* libfmodstudio_iphoneos.a */,\n"
+        "\t\t\t\tF0DA00000000000000000007 /* libspine_godot.ios.template_release.framework */,\n"
+        "\t\t\t\tF0DA00000000000000000008 /* libGodotFmod.ios.template_release.xcframework */",
     "\t\t\t\t$additional_pbx_resources_build": "",
     "\t\t\t\t$additional_pbx_resources_refs": "",
 }
