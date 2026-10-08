@@ -170,12 +170,19 @@ jobs:
           APP="ios-export/build/dd/Build/Products/Release-iphoneos/StS2.app"
           [ -d "$APP" ] || { echo "未产出 .app"; exit 1; }
           rm -f "$APP"/*.pck
+          mkdir -p "$APP/Frameworks"
+          cp -R ios-export/build/gdextlibs/libGodotFmod.ios.template_release.xcframework/ios-arm64/*.dylib "$APP/Frameworks/" 2>/dev/null || true
+          [ -d "$APP/Frameworks/libspine_godot.ios.template_release.framework" ] || cp -R ios-export/build/gdextlibs/libspine_godot.ios.template_release.framework "$APP/Frameworks/"
+          echo "=== App Frameworks 内容 ==="; ls -la "$APP/Frameworks/"
           plutil -remove godot_cmdline "$APP/Info.plist" 2>/dev/null || true
           plutil -insert godot_cmdline -json '["--main-pack", "user://StS2.pck"]' "$APP/Info.plist"
           plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$APP/Info.plist"
           plutil -replace CFBundleShortVersionString -string "0.111.0" "$APP/Info.plist"
           for fw in "$APP/Frameworks/"*.framework; do
             codesign -f -s - --generate-entitlement-der "$fw"
+          done
+          for dy in "$APP/Frameworks/"*.dylib; do
+            [ -e "$dy" ] && codesign -f -s - --generate-entitlement-der "$dy"
           done
           codesign -f -s - --generate-entitlement-der --entitlements ios-export/.work/ent_mem.plist "$APP"
           codesign -d --entitlements - "$APP" 2>/dev/null | grep -q increased-memory \
