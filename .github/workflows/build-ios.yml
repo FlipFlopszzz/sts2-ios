@@ -24,34 +24,45 @@ jobs:
     name: 编译 spine-godot iOS framework
     runs-on: macos-26
     steps:
+      - name: 缓存 spine 编译产物(源码与 Godot 版本不变则跳过编译)
+        id: spine-cache
+        uses: actions/cache@v4
+        with:
+          path: spinepack
+          key: spine-godot451-4.2-v1-ios-macos
       - name: Checkout spine-runtimes 4.2
+        if: steps.spine-cache.outputs.cache-hit != 'true'
         run: git clone --depth 1 -b 4.2 https://github.com/EsotericSoftware/spine-runtimes.git
       - uses: actions/setup-python@v5
+        if: steps.spine-cache.outputs.cache-hit != 'true'
         with:
           python-version: "3.11"
       - name: Install scons
+        if: steps.spine-cache.outputs.cache-hit != 'true'
         run: pip install scons
       - name: Build spine ios (编完立即收走,防 macos 构建清 bin)
+        if: steps.spine-cache.outputs.cache-hit != 'true'
         run: |
           cd spine-runtimes/spine-godot/build
           ./setup-extension.sh 4.5.1-stable false
           ./build-extension.sh ios
           FW=$(find .. -type d -name "libspine_godot.ios.template_release.framework" | head -1)
           [ -n "$FW" ] || { echo "ios framework 未产出"; exit 1; }
-          mkdir -p "$RUNNER_TEMP/spinepack/ios"
-          cp -R "$FW" "$RUNNER_TEMP/spinepack/ios/"
+          mkdir -p "$GITHUB_WORKSPACE/spinepack/ios"
+          cp -R "$FW" "$GITHUB_WORKSPACE/spinepack/ios/"
       - name: Build spine macos (编辑器校验用)
+        if: steps.spine-cache.outputs.cache-hit != 'true'
         run: |
           cd spine-runtimes/spine-godot/build
           ./build-extension.sh macos
           ED=$(find .. -type d -name "libspine_godot.macos.editor.framework" | head -1)
           [ -n "$ED" ] || { echo "macos framework 未产出"; exit 1; }
-          mkdir -p "$RUNNER_TEMP/spinepack/macos"
-          cp -R "$(dirname "$ED")"/libspine_godot.macos.*.framework "$RUNNER_TEMP/spinepack/macos/"
+          mkdir -p "$GITHUB_WORKSPACE/spinepack/macos"
+          cp -R "$(dirname "$ED")"/libspine_godot.macos.*.framework "$GITHUB_WORKSPACE/spinepack/macos/"
       - name: Pack frameworks
         run: |
-          ls -R "$RUNNER_TEMP/spinepack"
-          cd "$RUNNER_TEMP/spinepack" && zip -qry "$GITHUB_WORKSPACE/spine-libs.zip" .
+          ls -R "$GITHUB_WORKSPACE/spinepack"
+          cd "$GITHUB_WORKSPACE/spinepack" && zip -qry "$GITHUB_WORKSPACE/spine-libs.zip" .
       - uses: actions/upload-artifact@v4
         with:
           name: spine-ios
@@ -177,21 +188,24 @@ jobs:
           DYLIB="$APP/Frameworks/libGodotFmod.ios.template_release.universal.dylib"
           SPINE_DIR="$APP/Frameworks/libspine_godot.ios.template_release.framework"
           echo "--- 修前 otool -D dylib ---"; otool -D "$DYLIB" || true
-          echo "--- 修前 otool -L StS2 ---"; otool -L "$APP/StS2" | head -15
+          echo "--- 修前 otool -L StS2 ---"; otool -L "$APP/StS2" | head -12
           install_name_tool -id "@rpath/libGodotFmod.ios.template_release.universal.dylib" "$DYLIB" || true
-          install_name_tool -change "libGodotFmod.ios.template_release.universal.dylib" "@rpath/libGodotFmod.ios.template_release.universal.dylib" "$APP/StS2" || true
+          FMOD_REF=$(otool -L "$APP/StS2" | awk '/libGodotFmod/ {print $1; exit}')
+          if [ -n "$FMOD_REF" ] && [ "$FMOD_REF" != "@rpath/libGodotFmod.ios.template_release.universal.dylib" ]; then
+            echo "fmod 引用: $FMOD_REF -> @rpath/..."
+            install_name_tool -change "$FMOD_REF" "@rpath/libGodotFmod.ios.template_release.universal.dylib" "$APP/StS2"
+          fi
+          SPINE_REF=$(otool -L "$APP/StS2" | awk '/libspine_godot/ {print $1; exit}')
+          SPINE_NEW="@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release"
+          if [ -n "$SPINE_REF" ] && [ "$SPINE_REF" != "$SPINE_NEW" ]; then
+            echo "spine 引用: $SPINE_REF -> $SPINE_NEW"
+            install_name_tool -change "$SPINE_REF" "$SPINE_NEW" "$APP/StS2"
+          fi
           if [ -d "$SPINE_DIR" ]; then
             SPINE_BIN=$(ls "$SPINE_DIR"/libspine_godot.ios.template_release 2>/dev/null | head -1)
-            if [ -n "$SPINE_BIN" ]; then
-              echo "--- spine install name ---"; otool -D "$SPINE_BIN" || true
-              SPINE_OLD=$(otool -D "$SPINE_BIN" 2>/dev/null | tail -1)
-              install_name_tool -id "@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release" "$SPINE_BIN" || true
-              if [ -n "$SPINE_OLD" ] && [ "$SPINE_OLD" != "@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release" ]; then
-                install_name_tool -change "$SPINE_OLD" "@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release" "$APP/StS2" 2>/dev/null || true
-              fi
-            fi
+            [ -n "$SPINE_BIN" ] && install_name_tool -id "$SPINE_NEW" "$SPINE_BIN" || true
           fi
-          echo "--- 修后 otool -L StS2 ---"; otool -L "$APP/StS2" | head -15
+          echo "--- 修后 otool -L StS2 ---"; otool -L "$APP/StS2" | head -12
           plutil -remove godot_cmdline "$APP/Info.plist" 2>/dev/null || true
           plutil -insert godot_cmdline -json '["--main-pack", "user://StS2.pck"]' "$APP/Info.plist"
           plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$APP/Info.plist"
