@@ -23,8 +23,8 @@ entries = """		F0DA00000000000000000001 /* libfmod_iphoneos.a in Frameworks */ =
 		F0DA00000000000000000006 /* libGodotFmod.ios.template_release.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F0DA00000000000000000008; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		F0DA00000000000000000003 /* libfmod_iphoneos.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfmod_iphoneos.a; path = fmodlibs/libfmod_iphoneos.a; sourceTree = "<group>"; };
 		F0DA00000000000000000004 /* libfmodstudio_iphoneos.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfmodstudio_iphoneos.a; path = fmodlibs/libfmodstudio_iphoneos.a; sourceTree = "<group>"; };
-		F0DA00000000000000000007 /* libspine_godot.ios.template_release.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libspine_godot.ios.template_release.framework; path = ../addons/spine/ios/libspine_godot.ios.template_release.framework; sourceTree = "<group>"; };
-		F0DA00000000000000000008 /* libGodotFmod.ios.template_release.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libGodotFmod.ios.template_release.xcframework; path = ../addons/fmod/libs/ios/libGodotFmod.ios.template_release.xcframework; sourceTree = "<group>"; };"""
+		F0DA00000000000000000007 /* libspine_godot.ios.template_release.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libspine_godot.ios.template_release.framework; path = gdextlibs/libspine_godot.ios.template_release.framework; sourceTree = "<group>"; };
+		F0DA00000000000000000008 /* libGodotFmod.ios.template_release.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libGodotFmod.ios.template_release.xcframework; path = gdextlibs/libGodotFmod.ios.template_release.xcframework; sourceTree = "<group>"; };"""
 
 repl = {
     "\t\t\t\t\t$pbx_embeded_frameworks":
