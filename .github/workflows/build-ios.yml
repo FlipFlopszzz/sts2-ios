@@ -184,6 +184,18 @@ jobs:
           mkdir -p "$APP/Frameworks"
           cp -R ios-export/build/gdextlibs/libGodotFmod.ios.template_release.xcframework/ios-arm64/*.dylib "$APP/Frameworks/" 2>/dev/null || true
           [ -d "$APP/Frameworks/libspine_godot.ios.template_release.framework" ] || cp -R ios-export/build/gdextlibs/libspine_godot.ios.template_release.framework "$APP/Frameworks/"
+          echo "=== 找 sts2 AOT framework ==="
+          find ios-export/build -maxdepth 4 -type d -name "sts2.framework" 2>/dev/null
+          ls ios-export/build/dylibs 2>/dev/null || true
+          STS2_FW=$(find ios-export/build -maxdepth 4 -type d -name "sts2.framework" | head -1)
+          if [ -n "$STS2_FW" ]; then
+            cp -R "$STS2_FW" "$APP/Frameworks/"
+            echo "已嵌入 sts2.framework: $STS2_FW"
+          else
+            echo "!! sts2.framework 未找到,列出 dylibs/ 与 .godot/mono/temp/bin"
+            ls -R ios-export/build/dylibs 2>/dev/null | head -20 || true
+            ls ios-export/.godot/mono/temp/bin 2>/dev/null || true
+          fi
           echo "=== App Frameworks 内容 ==="; ls -la "$APP/Frameworks/"
           DYLIB="$APP/Frameworks/libGodotFmod.ios.template_release.universal.dylib"
           SPINE_DIR="$APP/Frameworks/libspine_godot.ios.template_release.framework"
