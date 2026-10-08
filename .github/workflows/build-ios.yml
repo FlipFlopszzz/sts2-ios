@@ -174,6 +174,24 @@ jobs:
           cp -R ios-export/build/gdextlibs/libGodotFmod.ios.template_release.xcframework/ios-arm64/*.dylib "$APP/Frameworks/" 2>/dev/null || true
           [ -d "$APP/Frameworks/libspine_godot.ios.template_release.framework" ] || cp -R ios-export/build/gdextlibs/libspine_godot.ios.template_release.framework "$APP/Frameworks/"
           echo "=== App Frameworks 内容 ==="; ls -la "$APP/Frameworks/"
+          DYLIB="$APP/Frameworks/libGodotFmod.ios.template_release.universal.dylib"
+          SPINE_DIR="$APP/Frameworks/libspine_godot.ios.template_release.framework"
+          echo "--- 修前 otool -D dylib ---"; otool -D "$DYLIB" || true
+          echo "--- 修前 otool -L StS2 ---"; otool -L "$APP/StS2" | head -15
+          install_name_tool -id "@rpath/libGodotFmod.ios.template_release.universal.dylib" "$DYLIB" || true
+          install_name_tool -change "libGodotFmod.ios.template_release.universal.dylib" "@rpath/libGodotFmod.ios.template_release.universal.dylib" "$APP/StS2" || true
+          if [ -d "$SPINE_DIR" ]; then
+            SPINE_BIN=$(ls "$SPINE_DIR"/libspine_godot.ios.template_release 2>/dev/null | head -1)
+            if [ -n "$SPINE_BIN" ]; then
+              echo "--- spine install name ---"; otool -D "$SPINE_BIN" || true
+              SPINE_OLD=$(otool -D "$SPINE_BIN" 2>/dev/null | tail -1)
+              install_name_tool -id "@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release" "$SPINE_BIN" || true
+              if [ -n "$SPINE_OLD" ] && [ "$SPINE_OLD" != "@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release" ]; then
+                install_name_tool -change "$SPINE_OLD" "@rpath/libspine_godot.ios.template_release.framework/libspine_godot.ios.template_release" "$APP/StS2" 2>/dev/null || true
+              fi
+            fi
+          fi
+          echo "--- 修后 otool -L StS2 ---"; otool -L "$APP/StS2" | head -15
           plutil -remove godot_cmdline "$APP/Info.plist" 2>/dev/null || true
           plutil -insert godot_cmdline -json '["--main-pack", "user://StS2.pck"]' "$APP/Info.plist"
           plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$APP/Info.plist"
