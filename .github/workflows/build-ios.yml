@@ -184,18 +184,12 @@ jobs:
           mkdir -p "$APP/Frameworks"
           cp -R ios-export/build/gdextlibs/libGodotFmod.ios.template_release.xcframework/ios-arm64/*.dylib "$APP/Frameworks/" 2>/dev/null || true
           [ -d "$APP/Frameworks/libspine_godot.ios.template_release.framework" ] || cp -R ios-export/build/gdextlibs/libspine_godot.ios.template_release.framework "$APP/Frameworks/"
-          echo "=== 找 sts2 AOT framework ==="
-          find ios-export/build -maxdepth 4 -type d -name "sts2.framework" 2>/dev/null
-          ls ios-export/build/dylibs 2>/dev/null || true
-          STS2_FW=$(find ios-export/build -maxdepth 4 -type d -name "sts2.framework" | head -1)
-          if [ -n "$STS2_FW" ]; then
-            cp -R "$STS2_FW" "$APP/Frameworks/"
-            echo "已嵌入 sts2.framework: $STS2_FW"
-          else
-            echo "!! sts2.framework 未找到,列出 dylibs/ 与 .godot/mono/temp/bin"
-            ls -R ios-export/build/dylibs 2>/dev/null | head -20 || true
-            ls ios-export/.godot/mono/temp/bin 2>/dev/null || true
-          fi
+          echo "=== 放 AOT 产物到引擎期望位置 data_sts2_ios_arm64/ ==="
+          AOT_DYLIB="ios-export/.godot/mono/temp/bin/ExportRelease/ios-arm64/publish/sts2.dylib"
+          [ -f "$AOT_DYLIB" ] || { echo "!! AOT 产物缺失: $AOT_DYLIB"; find ios-export/.godot/mono/temp/bin -name "sts2.dylib" 2>/dev/null | head -3; exit 1; }
+          mkdir -p "$APP/data_sts2_ios_arm64"
+          cp "$AOT_DYLIB" "$APP/data_sts2_ios_arm64/sts2.dylib"
+          echo "已放置: $(ls -la "$APP/data_sts2_ios_arm64/")"
           echo "=== App Frameworks 内容 ==="; ls -la "$APP/Frameworks/"
           DYLIB="$APP/Frameworks/libGodotFmod.ios.template_release.universal.dylib"
           SPINE_DIR="$APP/Frameworks/libspine_godot.ios.template_release.framework"
@@ -225,7 +219,7 @@ jobs:
           for fw in "$APP/Frameworks/"*.framework; do
             codesign -f -s - --generate-entitlement-der "$fw"
           done
-          for dy in "$APP/Frameworks/"*.dylib; do
+          for dy in "$APP/Frameworks/"*.dylib "$APP/data_sts2_ios_arm64/"*.dylib; do
             [ -e "$dy" ] && codesign -f -s - --generate-entitlement-der "$dy"
           done
           codesign -f -s - --generate-entitlement-der --entitlements ios-export/.work/ent_mem.plist "$APP"
